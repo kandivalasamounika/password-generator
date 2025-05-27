@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password Generator (Vanilla JS)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-center justify-center transition-colors duration-300">
+  <div class="max-w-md w-full mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Password Generator</h1>
+      <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white">🌙 Dark</button>
+    </div>
+
+    <!-- Password Display -->
+    <div class="mb-4 p-4 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-between">
+      <span id="password-display" class="text-lg font-mono text-gray-800 dark:text-white break-all">Click Generate</span>
+      <button id="copy-btn" class="ml-2 p-2 bg-blue-500 text-white rounded hover:bg-blue-600" disabled>Copy</button>
+    </div>
+
+    <!-- Strength Meter -->
+    <div class="mb-4">
+      <span class="text-sm text-gray-600 dark:text-gray-300">Strength: <span id="strength-meter" class="text-gray-600 dark:text-gray-300">N/A</span></span>
+    </div>
+
+    <!-- Password Length -->
+    <div class="mb-4">
+      <label class="block text-gray-700 dark:text-gray-300 mb-2">Password Length: <span id="length-display">12</span></label>
+      <input type="range" id="length-slider" min="8" max="32" value="12" class="w-full">
+    </div>
+
+    <!-- Character Type Toggles -->
+    <div class="mb-4 grid grid-cols-2 gap-2">
+      <label class="flex items-center text-gray-700 dark:text-gray-300">
+        <input type="checkbox" id="uppercase" checked class="mr-2"> Uppercase (A-Z)
+      </label>
+      <label class="flex items-center text-gray-700 dark:text-gray-300">
+        <input type="checkbox" id="lowercase" checked class="mr-2"> Lowercase (a-z)
+      </label>
+      <label class="flex items-center text-gray-700 dark:text-gray-300">
+        <input type="checkbox" id="numbers" checked class="mr-2"> Numbers (0-9)
+      </label>
+      <label class="flex items-center text-gray-700 dark:text-gray-300">
+        <input type="checkbox" id="special" checked class="mr-2"> Special (!@#$%)
+      </label>
+    </div>
+
+    <!-- Generate Button -->
+    <button id="generate-btn" class="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 mb-4">Generate Password</button>
+
+    <!-- Password History -->
+    <div id="history" class="mt-4 hidden">
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">Recent Passwords</h2>
+      <ul id="history-list" class="list-disc pl-5 text-gray-700 dark:text-gray-300 font-mono"></ul>
+    </div>
+  </div>
+
+  <script>
+    // Character sets
+    const charSets = {
+      uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+      lowercase: 'abcdefghijklmnopqrstuvwxyz',
+      numbers: '0123456789',
+      special: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+    };
+
+    // DOM elements
+    const passwordDisplay = document.getElementById('password-display');
+    const copyBtn = document.getElementById('copy-btn');
+    const strengthMeter = document.getElementById('strength-meter');
+    const lengthSlider = document.getElementById('length-slider');
+    const lengthDisplay = document.getElementById('length-display');
+    const uppercaseCheck = document.getElementById('uppercase');
+    const lowercaseCheck = document.getElementById('lowercase');
+    const numbersCheck = document.getElementById('numbers');
+    const specialCheck = document.getElementById('special');
+    const generateBtn = document.getElementById('generate-btn');
+    const themeToggle = document.getElementById('theme-toggle');
+    const historySection = document.getElementById('history');
+    const historyList = document.getElementById('history-list');
+
+    let history = [];
+
+    // Generate password
+    function generatePassword() {
+      const length = parseInt(lengthSlider.value);
+      let chars = '';
+      let guaranteedChars = '';
+
+      // Build character pool
+      if (uppercaseCheck.checked) {
+        chars += charSets.uppercase;
+        guaranteedChars += charSets.uppercase[Math.floor(Math.random() * charSets.uppercase.length)];
+      }
+      if (lowercaseCheck.checked) {
+        chars += charSets.lowercase;
+        guaranteedChars += charSets.lowercase[Math.floor(Math.random() * charSets.lowercase.length)];
+      }
+      if (numbersCheck.checked) {
+        chars += charSets.numbers;
+        guaranteedChars += charSets.numbers[Math.floor(Math.random() * charSets.numbers.length)];
+      }
+      if (specialCheck.checked) {
+        chars += charSets.special;
+        guaranteedChars += charSets.special[Math.floor(Math.random() * charSets.special.length)];
+      }
+
+      // Validate character selection
+      if (chars === '') {
+        alert('Please select at least one character type.');
+        return;
+      }
+
+      // Generate remaining characters
+      let newPassword = guaranteedChars;
+      for (let i = guaranteedChars.length; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * chars.length);
+        newPassword += chars[randomIndex];
+      }
+
+      // Shuffle password
+      newPassword = newPassword.split('').sort(() => Math.random() - 0.5).join('');
+
+      // Update display
+      passwordDisplay.textContent = newPassword;
+      copyBtn.disabled = false;
+
+      // Update strength
+      const strength = calculateStrength(newPassword);
+      strengthMeter.textContent = strength;
+      strengthMeter.className = strength === 'Strong' ? 'text-green-500' : strength === 'Moderate' ? 'text-yellow-500' : 'text-red-500';
+
+      // Update history
+      history.unshift(newPassword);
+      history = history.slice(0, 5);
+      updateHistory();
+    }
+
+    // Calculate password strength
+    function calculateStrength(pwd) {
+      let score = 0;
+      if (pwd.length > 8) score++;
+      if (pwd.length > 12) score++;
+      if (/[A-Z]/.test(pwd)) score++;
+      if (/[a-z]/.test(pwd)) score++;
+      if (/[0-9]/.test(pwd)) score++;
+      if (/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(pwd)) score++;
+      return score <= 2 ? 'Weak' : score <= 4 ? 'Moderate' : 'Strong';
+    }
+
+    // Update history display
+    function updateHistory() {
+      historySection.classList.remove('hidden');
+      historyList.innerHTML = history.map(pwd => `<li>${pwd}</li>`).join('');
+    }
+
+    // Copy to clipboard
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(passwordDisplay.textContent)
+        .then(() => alert('Password copied to clipboard!'))
+        .catch(() => alert('Failed to copy password.'));
+    });
+
+    // Update length display
+    lengthSlider.addEventListener('input', () => {
+      lengthDisplay.textContent = lengthSlider.value;
+    });
+
+    // Generate button
+    generateBtn.addEventListener('click', generatePassword);
+
+    // Theme toggle
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      themeToggle.textContent = document.body.classList.contains('dark') ? '☀️ Light' : '🌙 Dark';
+    });
+
+    // Auto-generate on load
+    generatePassword();
+  </script>
+</body>
+</html>
